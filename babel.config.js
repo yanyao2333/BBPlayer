@@ -10,6 +10,9 @@ module.exports = (api) => {
         plugins: ['react-native-paper/babel'],
       },
     },
-    plugins: ['react-native-reanimated/plugin'],
+    plugins: [
+      ['babel-plugin-react-compiler'],
+      'react-native-reanimated/plugin',
+    ],
   }
 }
