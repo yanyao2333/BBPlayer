@@ -23,7 +23,8 @@
       },
       "package": "com.roitium.BBPlayer",
       "versionCode": 30,
-      "runtimeVersion": "0.0.1"
+      "runtimeVersion": "0.0.1",
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",
@@ -61,7 +62,9 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
