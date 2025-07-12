@@ -1,29 +1,51 @@
-import type { NeteaseLyricResponse } from '@/types/apis/netease'
-import { NeteaseApiError } from '@/utils/errors'
-import { errAsync, okAsync } from 'neverthrow'
+import type {
+	NeteaseLyricResponse,
+	NeteaseSearchResponse,
+} from '@/types/apis/netease'
+import { createRequest, RequestOptions } from './netease.request'
+import { createOption } from './netease.utils'
+
+interface SearchParams {
+	keywords: string
+	type?: number | string
+	limit?: number
+	offset?: number
+}
 
 export const createNeteaseApi = () => ({
-	getLyrics: async (id: number) => {
-		const url = `https://music.163.com/api/song/lyric?lv=-1&tv=-1&os=pc&id=${id}`
-		const headers = {
-			'User-Agent':
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-			Accept: 'application/json',
+	getLyrics: (id: number) => {
+		const data = {
+			id: id,
+			lv: -1,
+			tv: -1,
+			os: 'pc',
 		}
-		const options = {
-			method: 'GET',
-			headers,
+		const requestOptions: RequestOptions = createOption({}, 'weapi')
+		return createRequest<object, NeteaseLyricResponse>(
+			'/api/song/lyric',
+			data,
+			requestOptions,
+		).map((res) => res.body)
+	},
+	search: (params: SearchParams) => {
+		const type = params.type || 1
+		const endpoint =
+			type == '2000' ? '/api/search/voice/get' : '/api/cloudsearch/pc'
+
+		const data = {
+			type: type,
+			limit: params.limit || 30,
+			offset: params.offset || 0,
+			...(type == '2000'
+				? { keyword: params.keywords }
+				: { s: params.keywords }),
 		}
-		const response = await fetch(url, options)
-		if (!response.ok) {
-			return errAsync(
-				new NeteaseApiError('获取歌词失败', response.status, null),
-			)
-		}
-		const data: NeteaseLyricResponse = await response.json()
-		if (data.code !== 200) {
-			return errAsync(new NeteaseApiError('获取歌词失败', data.code, data))
-		}
-		return okAsync(data)
+
+		const requestOptions: RequestOptions = createOption({}, 'weapi')
+		return createRequest<object, NeteaseSearchResponse>(
+			endpoint,
+			data,
+			requestOptions,
+		).map((res) => res.body)
 	},
 })
