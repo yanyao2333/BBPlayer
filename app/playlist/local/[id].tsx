@@ -1,4 +1,3 @@
-import AddToFavoriteListsModal from '@/components/modals/AddVideoToFavModal'
 import { PlaylistHeader } from '@/components/playlist/PlaylistHeader'
 import {
 	TrackListItem,
@@ -6,11 +5,10 @@ import {
 } from '@/components/playlist/PlaylistItem'
 import useCurrentTrack from '@/hooks/playerHooks/useCurrentTrack'
 import {
-	useBatchDeleteFavoriteListContents,
-	useInfiniteFavoriteList,
-} from '@/hooks/queries/bilibili/useFavoriteData'
+	usePlaylistContents,
+	usePlaylistMetadata,
+} from '@/hooks/queries/db/usePlaylist'
 import { usePlayerStore } from '@/hooks/stores/usePlayerStore'
-import { bilibiliApi } from '@/lib/api/bilibili/bilibili.api'
 import type { Track } from '@/types/core/media'
 import log from '@/utils/log'
 import toast from '@/utils/toast'
@@ -21,32 +19,40 @@ import {
 	useRoute,
 } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { useCallback, useEffect, useState } from 'react'
-import { RefreshControl, View } from 'react-native'
-import { ActivityIndicator, Divider, Text, useTheme } from 'react-native-paper'
+import { useCallback, useEffect } from 'react'
+import { View } from 'react-native'
+import { Divider, Text, useTheme } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PlaylistAppBar } from '../../../components/playlist/PlaylistAppBar'
 import { PlaylistError } from '../../../components/playlist/PlaylistError'
 import { PlaylistLoading } from '../../../components/playlist/PlaylistLoading'
 import type { RootStackParamList } from '../../../types/navigation'
 
-const playlistLog = log.extend('PLAYLIST/FAVORITE')
+const playlistLog = log.extend('PLAYLIST/LOCAL')
 
-export default function FavoritePage() {
-	const route = useRoute<RouteProp<RootStackParamList, 'PlaylistFavorite'>>()
+export default function LocalPlaylistPage() {
+	const route = useRoute<RouteProp<RootStackParamList, 'PlaylistLocal'>>()
 	const { id } = route.params
 	const { colors } = useTheme()
 	const navigation =
 		useNavigation<
-			NativeStackNavigationProp<RootStackParamList, 'PlaylistFavorite'>
+			NativeStackNavigationProp<RootStackParamList, 'PlaylistLocal'>
 		>()
 	const addToQueue = usePlayerStore((state) => state.addToQueue)
 	const currentTrack = useCurrentTrack()
-	const [refreshing, setRefreshing] = useState(false)
-	const { mutate } = useBatchDeleteFavoriteListContents()
 	const insets = useSafeAreaInsets()
-	const [modalVisible, setModalVisible] = useState(false)
-	const [currentModalBvid, setCurrentModalBvid] = useState('')
+
+	const {
+		data: playlistData,
+		isPending: isPlaylistDataPending,
+		isError: isPlaylistDataError,
+	} = usePlaylistContents(Number(id))
+
+	const {
+		data: playlistMetadata,
+		isPending: isPlaylistMetadataPending,
+		isError: isPlaylistMetadataError,
+	} = usePlaylistMetadata(Number(id))
 
 	const playNext = useCallback(
 		async (track: Track) => {
@@ -68,44 +74,20 @@ export default function FavoritePage() {
 	const playAll = useCallback(
 		async (startFromId?: string) => {
 			try {
-				const allContentIds = await bilibiliApi.getFavoriteListAllContents(
-					Number(id),
-				)
-				if (allContentIds.isErr()) {
-					playlistLog.sentry('获取所有内容失败', allContentIds.error)
-					toast.error('播放全部失败', {
-						description: '获取收藏夹所有内容失败，无法播放',
-					})
-					return
-				}
-				const allTracks: Track[] = allContentIds.value.map((c) => ({
-					id: c.bvid,
-					source: 'bilibili' as const,
-					hasMetadata: false,
-					isMultiPage: false,
-				}))
+				if (!playlistData) return
 				await addToQueue({
-					tracks: allTracks,
+					tracks: playlistData,
 					playNow: true,
 					clearQueue: true,
-					startFromKey: startFromId,
+					startFromId: startFromId,
 					playNext: false,
 				})
 			} catch (error) {
 				playlistLog.sentry('播放全部失败', error)
 			}
 		},
-		[addToQueue, id],
+		[addToQueue, playlistData],
 	)
-
-	const {
-		data: favoriteData,
-		isPending: isFavoriteDataPending,
-		isError: isFavoriteDataError,
-		fetchNextPage,
-		refetch,
-		hasNextPage,
-	} = useInfiniteFavoriteList(Number(id))
 
 	const trackMenuItems = useCallback(
 		(item: Track) => [
@@ -119,18 +101,11 @@ export default function FavoritePage() {
 				title: '从收藏夹中删除',
 				leadingIcon: 'playlist-remove',
 				onPress: async () => {
-					mutate({ bvids: [item.id], favoriteId: Number(id) })
-					setRefreshing(true)
-					await refetch()
-					setRefreshing(false)
-				},
-			},
-			{
-				title: '添加到收藏夹',
-				leadingIcon: 'plus',
-				onPress: () => {
-					setCurrentModalBvid(item.id)
-					setModalVisible(true)
+					// mutate({ bvids: [item.id], favoriteId: Number(id) })
+					// setRefreshing(true)
+					// await refetch()
+					// setRefreshing(false)
+					toast.show('unimplemented')
 				},
 			},
 			TrackMenuItemDividerToken,
@@ -142,7 +117,7 @@ export default function FavoritePage() {
 				},
 			},
 		],
-		[playNext, mutate, refetch, id, navigation],
+		[playNext, navigation],
 	)
 
 	const handleTrackPress = useCallback(
@@ -178,17 +153,12 @@ export default function FavoritePage() {
 		return null
 	}
 
-	if (isFavoriteDataPending) {
+	if (isPlaylistDataPending || isPlaylistMetadataPending) {
 		return <PlaylistLoading />
 	}
 
-	if (isFavoriteDataError) {
-		return (
-			<PlaylistError
-				text='加载收藏夹内容失败'
-				onRetry={refetch}
-			/>
-		)
+	if (isPlaylistDataError || isPlaylistMetadataError) {
+		return <PlaylistError text='加载播放列表内容失败' />
 	}
 
 	return (
@@ -201,28 +171,20 @@ export default function FavoritePage() {
 				}}
 			>
 				<LegendList
-					data={favoriteData.pages.flatMap((page) => page.tracks)}
+					data={playlistData}
 					renderItem={renderItem}
 					ItemSeparatorComponent={() => <Divider />}
 					ListHeaderComponent={
 						<PlaylistHeader
-							coverUri={favoriteData.pages[0].favoriteMeta.cover}
-							title={favoriteData.pages[0].favoriteMeta.title}
-							subtitle={`${favoriteData.pages[0].favoriteMeta.upper.name} • ${favoriteData.pages[0].favoriteMeta.media_count} 首歌曲`}
-							description={favoriteData.pages[0].favoriteMeta.intro}
+							coverUri={playlistMetadata.coverUrl as string | undefined}
+							title={playlistMetadata.title}
+							subtitle={`${playlistMetadata.author?.name} • ${playlistMetadata.count} 首歌曲`}
+							description={
+								playlistMetadata.description
+									? playlistMetadata.description
+									: '暂无描述'
+							}
 							onPlayAll={() => playAll()}
-						/>
-					}
-					refreshControl={
-						<RefreshControl
-							refreshing={refreshing}
-							onRefresh={async () => {
-								setRefreshing(true)
-								await refetch()
-								setRefreshing(false)
-							}}
-							colors={[colors.primary]}
-							progressViewOffset={50}
 						/>
 					}
 					keyExtractor={keyExtractor}
@@ -230,40 +192,19 @@ export default function FavoritePage() {
 						paddingBottom: currentTrack ? 70 + insets.bottom : insets.bottom,
 					}}
 					showsVerticalScrollIndicator={false}
-					onEndReached={hasNextPage ? () => fetchNextPage() : null}
 					ListFooterComponent={
-						hasNextPage ? (
-							<View
-								style={{
-									flexDirection: 'row',
-									alignItems: 'center',
-									justifyContent: 'center',
-									padding: 16,
-								}}
-							>
-								<ActivityIndicator size='small' />
-							</View>
-						) : (
-							<Text
-								variant='titleMedium'
-								style={{
-									textAlign: 'center',
-									paddingTop: 10,
-								}}
-							>
-								•
-							</Text>
-						)
+						<Text
+							variant='titleMedium'
+							style={{
+								textAlign: 'center',
+								paddingTop: 10,
+							}}
+						>
+							•
+						</Text>
 					}
 				/>
 			</View>
-
-			<AddToFavoriteListsModal
-				key={currentModalBvid}
-				visible={modalVisible}
-				bvid={currentModalBvid}
-				setVisible={setModalVisible}
-			/>
 		</View>
 	)
 }

@@ -155,11 +155,11 @@ export default function TestPage() {
 					<Button
 						mode='outlined'
 						onPress={() => {
-							setIsQrCodeLoginDialogVisible(true)
+							navigation.push('PlaylistLocal', { id: '84347579' })
 						}}
 						style={{ marginBottom: 8 }}
 					>
-						测试扫码登录
+						跳转 local 播放列表
 					</Button>
 				</View>
 
@@ -171,14 +171,12 @@ export default function TestPage() {
 				</Text>
 				{queue.map((track) => (
 					<Card
-						key={`${track.id}-${track.cid}`}
+						key={`${track.id}`}
 						style={{ marginBottom: 8 }}
 					>
 						<Card.Title
-							title={track.hasMetadata ? track.title : track.id}
-							subtitle={
-								track.hasMetadata ? track.artist : '该视频还未获取元数据'
-							}
+							title={track.title}
+							subtitle={track.artist?.name ?? '该视频还未获取元数据'}
 						/>
 					</Card>
 				))}
