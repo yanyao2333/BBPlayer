@@ -1,4 +1,3 @@
-import type { Track } from '@/types/core/media'
 import { formatDurationToHHMMSS } from '@/utils/times'
 import { Image } from 'expo-image'
 import { memo, useState } from 'react'
@@ -15,32 +14,41 @@ import {
 export interface TrackMenuItem {
 	title: string
 	leadingIcon: string
-	onPress: (track: Track) => void
+	onPress: () => void
 }
 
-export const TrackMenuItemDividerToken = {
+export const TrackMenuItemDividerToken: TrackMenuItem = {
 	title: 'divider',
 	leadingIcon: '',
 	onPress: () => {},
 }
 
+export type TrackNecessaryData = {
+	cover?: string
+	artistCover?: string
+	title: string
+	duration: number
+	id: number
+	artistName?: string
+}
+
 interface TrackListItemProps {
-	item: Track
 	index: number
-	onTrackPress: (track: Track) => void
+	onTrackPress: () => void
 	menuItems: TrackMenuItem[]
 	showCoverImage?: boolean
+	data: TrackNecessaryData
 }
 
 /**
  * 可复用的播放列表项目组件。
  */
 export const TrackListItem = memo(function TrackListItem({
-	item,
 	index,
 	onTrackPress,
 	menuItems,
 	showCoverImage = true,
+	data,
 }: TrackListItemProps) {
 	const [isMenuVisible, setIsMenuVisible] = useState(false)
 	const openMenu = () => setIsMenuVisible(true)
@@ -49,7 +57,7 @@ export const TrackListItem = memo(function TrackListItem({
 	return (
 		<TouchableRipple
 			style={{ paddingVertical: 4 }}
-			onPress={() => onTrackPress(item)}
+			onPress={onTrackPress}
 		>
 			<Surface
 				style={{
@@ -83,7 +91,9 @@ export const TrackListItem = memo(function TrackListItem({
 					{/* Cover Image */}
 					{showCoverImage ? (
 						<Image
-							source={{ uri: item.cover }}
+							source={{
+								uri: data.cover ?? data.artistCover ?? undefined,
+							}}
 							style={{ width: 45, height: 45, borderRadius: 4 }}
 							transition={300}
 							cachePolicy={'none'}
@@ -92,7 +102,7 @@ export const TrackListItem = memo(function TrackListItem({
 
 					{/* Title and Details */}
 					<View style={{ marginLeft: 12, flex: 1, marginRight: 4 }}>
-						<Text variant='bodySmall'>{item.title}</Text>
+						<Text variant='bodySmall'>{data.title}</Text>
 						<View
 							style={{
 								flexDirection: 'row',
@@ -101,13 +111,13 @@ export const TrackListItem = memo(function TrackListItem({
 							}}
 						>
 							{/* Display Artist if available */}
-							{item.artist && (
+							{data.artistName && (
 								<>
 									<Text
 										variant='bodySmall'
 										numberOfLines={1}
 									>
-										{item.artist}
+										{data.artistName ?? '未知'}
 									</Text>
 									<Text
 										style={{ marginHorizontal: 4 }}
@@ -119,7 +129,7 @@ export const TrackListItem = memo(function TrackListItem({
 							)}
 							{/* Display Duration */}
 							<Text variant='bodySmall'>
-								{item.duration ? formatDurationToHHMMSS(item.duration) : ''}
+								{data.duration ? formatDurationToHHMMSS(data.duration) : ''}
 							</Text>
 						</View>
 					</View>
@@ -146,7 +156,7 @@ export const TrackListItem = memo(function TrackListItem({
 										key={menuItem.title}
 										leadingIcon={menuItem.leadingIcon}
 										onPress={() => {
-											menuItem.onPress(item)
+											menuItem.onPress()
 											closeMenu()
 										}}
 										title={menuItem.title}
