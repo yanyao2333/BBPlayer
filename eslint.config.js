@@ -10,6 +10,9 @@ import tseslint from 'typescript-eslint'
 
 export default defineConfig([
 	{
+		ignores: ['dist/*'],
+	},
+	{
 		files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
 		plugins: { js },
 		extends: ['js/recommended', reactHooksExtra.configs.recommended],
@@ -63,7 +66,7 @@ export default defineConfig([
 			},
 		},
 	},
-	tseslint.config(
+	defineConfig(
 		tseslint.configs.recommended,
 		tseslint.configs.recommendedTypeChecked,
 		tseslint.configs.stylisticTypeChecked,
